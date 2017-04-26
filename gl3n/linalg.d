@@ -477,7 +477,7 @@ struct Vector(type, int dimension_) {
         return ret;
     }
 
-    Vector opBinary(string op)(Vector r) const if((op == "+") || (op == "-")) {
+    Vector opBinary(string op)(Vector r) const if((op == "+") || (op == "-") || (op == "*") || (op == "/")) {
         Vector ret;
 
         foreach(index; TupleRange!(0, dimension)) {
@@ -485,10 +485,6 @@ struct Vector(type, int dimension_) {
         }
 
         return ret;
-    }
-
-    vt opBinary(string op : "*")(Vector r) const {
-        return dot(this, r);
     }
 
     // vector * matrix (for matrix * vector -> struct Matrix)
@@ -506,7 +502,11 @@ struct Vector(type, int dimension_) {
     }
 
     auto opBinaryRight(string op, T)(T inp) const if(!is_vector!T && !is_matrix!T && !is_quaternion!T) {
-        return this.opBinary!(op)(inp);
+        Vector ret;
+        foreach(index; TupleRange!(0, dimension)) {
+            ret.vector[index] = mixin("inp" ~ op ~ "vector[index]");
+        }
+        return ret;
     }
 
     unittest {
@@ -515,19 +515,19 @@ struct Vector(type, int dimension_) {
         assert((v2*2.5f).vector == [2.5f, 7.5f]);
         assert((v2+vec2(3.0f, 1.0f)).vector == [4.0f, 4.0f]);
         assert((v2-vec2(1.0f, 3.0f)).vector == [0.0f, 0.0f]);
-        assert((v2*vec2(2.0f, 2.0f)) == 8.0f);
+        assert(dot(v2, vec2(2.0f, 2.0f)) == 8.0f);
 
         vec3 v3 = vec3(1.0f, 3.0f, 5.0f);
         assert((v3*2.5f).vector == [2.5f, 7.5f, 12.5f]);
         assert((v3+vec3(3.0f, 1.0f, -1.0f)).vector == [4.0f, 4.0f, 4.0f]);
         assert((v3-vec3(1.0f, 3.0f, 5.0f)).vector == [0.0f, 0.0f, 0.0f]);
-        assert((v3*vec3(2.0f, 2.0f, 2.0f)) == 18.0f);
+        assert(dot(v3, vec3(2.0f, 2.0f, 2.0f)) == 18.0f);
 
         vec4 v4 = vec4(1.0f, 3.0f, 5.0f, 7.0f);
         assert((v4*2.5f).vector == [2.5f, 7.5f, 12.5f, 17.5]);
         assert((v4+vec4(3.0f, 1.0f, -1.0f, -3.0f)).vector == [4.0f, 4.0f, 4.0f, 4.0f]);
         assert((v4-vec4(1.0f, 3.0f, 5.0f, 7.0f)).vector == [0.0f, 0.0f, 0.0f, 0.0f]);
-        assert((v4*vec4(2.0f, 2.0f, 2.0f, 2.0f)) == 32.0f);
+        assert(dot(v4, vec4(2.0f, 2.0f, 2.0f, 2.0f)) == 32.0f);
 
         mat2 m2 = mat2(1.0f, 2.0f, 3.0f, 4.0f);
         vec2 v2_2 = vec2(2.0f, 2.0f);
@@ -537,22 +537,16 @@ struct Vector(type, int dimension_) {
         vec3 v3_2 = vec3(2.0f, 2.0f, 2.0f);
         assert((v3_2*m3).vector == [24.0f, 30.0f, 36.0f]);
     }
-
-    void opOpAssign(string op : "*")(vt r) {
-        foreach(index; TupleRange!(0, dimension)) {
-            vector[index] *= r;
-        }
-    }
-
-    void opOpAssign(string op : "/")(vt r) {
-        foreach(index; TupleRange!(0, dimension)) {
-            vector[index] /= r;
-        }
-    }
-
-    void opOpAssign(string op)(Vector r) if((op == "+") || (op == "-")) {
+    
+    void opOpAssign(string op)(Vector r) if((op == "+") || (op == "-") || (op == "*") || (op == "/")) {
         foreach(index; TupleRange!(0, dimension)) {
             mixin("vector[index]" ~ op ~ "= r.vector[index];");
+        }
+    }
+    
+    void opOpAssign(string op)(vt r) if((op == "+") || (op == "-") || (op == "*") || (op == "/")) {
+        foreach(index; TupleRange!(0, dimension)) {
+            mixin("vector[index]" ~ op ~ "= r;");
         }
     }
 
@@ -699,9 +693,7 @@ unittest {
     vec3 v2 = vec3(1.0f, 3.0f, 2.0f);
 
     assert(dot(v1, v2) == 1.0f);
-    assert(dot(v1, v2) == (v1 * v2));
     assert(dot(v1, v2) == dot(v2, v1));
-    assert((v1 * v2) == (v1 * v2));
 
     assert(cross(v1, v2).vector == [13.0f, -5.0f, 1.0f]);
     assert(cross(v2, v1).vector == [-13.0f, 5.0f, -1.0f]);

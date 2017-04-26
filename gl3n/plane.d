@@ -60,7 +60,7 @@ struct PlaneT(type = float) if(isFloatingPoint!type) {
     /// Normalizes the plane inplace.
     void normalize() {
         pt det = 1.0 / normal.length;
-        normal *= det;
+        normal = normal * det;
         d *= det;
     }
 
